@@ -1,0 +1,6 @@
+#_("rename/copy to 'config.txt'")
+
+{
+  :user "user", 
+  :pass "pass"
+}
