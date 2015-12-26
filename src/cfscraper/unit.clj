@@ -21,12 +21,16 @@
 (def login-url "http://customsforge.com/index.php?app=core&module=global&section=login")
 (def search-url "http://ignition.customsforge.com")
 (def artists-url "http://ignition.customsforge.com/search/artists")
+(def download-link-base-url "http://customsforge.com/process.php?id=")
 
 (def artist-list-xpath "//*[@id='artists-column']/a/@href")
 (def song-list-xpath "//*/div[@id='groups-content']/div/div[2]/table/tbody/tr")
 (def search-button-xpath "//*[@id='search']")
 (def next-page-enabled-xpath 
   "//*[@id='pag-next' and contains(concat(' ', @class, ' '), ' open ')]")
+(def song-in-search-xpath "//*[@id='search_table']/tbody/tr")
+(def song-id-xpath "td/@id")
+(def download-context-xpath "//*[@id='19116']/div[2]/div[2]")
 
 (def login-form-id "login")
 (def username-field-name "ips_username")
@@ -70,8 +74,8 @@
     (.setValueAttribute password-field (:password config))
     (.click submit-button)))
 
-(defn log-in [client]
-  (if-let [login-form (get-login-form (get-page client base-url))]
+(defn log-in []
+  (if-let [login-form (get-login-form (get-page *client* base-url))]
       (login-via-form login-form)))
 
 (defn get-artist-url-list [client]
@@ -86,22 +90,32 @@
 (defn get-search-page [client]
   (get-page client search-url))
 
-(defn get-songs [client page]
-  client)
+(defn get-song-rows [page]
+  (.getByXPath page song-in-search-xpath))
 
-(defn get-next-button [page]
-  (.getFirstByXPath page next-page-enabled-xpath))
+(defn get-song-id-for-row [row]
+  (.getValue (.getFirstByXPath row song-id-xpath)))
 
-(defn click-next-button [page]
-  (.click (get-next-button page)))
+(defn download-song [id]
+  (println (get-page *client* (str download-link-base-url id))))
+
+(defn dl-songs [page]
+  (let [song-rows (get-song-rows page)
+        ids (map get-song-id-for-row song-rows)]
+    (doall (map download-song ids))))
+
+(defn click-next-button? [page]
+  (let [button (.getFirstByXPath page next-page-enabled-xpath)]
+    (.click button)
+    button))
 
 (defn main []
-  (let [client (make-client BrowserVersion/FIREFOX_38)]
-    (log-in client)
-    (loop [page (get-search-page client)]
-      (get-songs client page)
-      (if (get-next-button page)
-        (recur (click-next-button page))
+  (binding [*client* (make-client BrowserVersion/FIREFOX_38)]
+    (log-in)
+    (loop [page (get-page *client* search-url)]
+      (dl-songs page)
+      (if (click-next-button? page)
+        (recur page)
         (println "DONE")))))
 
   
