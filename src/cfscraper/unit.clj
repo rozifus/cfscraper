@@ -30,7 +30,19 @@
   "//*[@id='pag-next' and contains(concat(' ', @class, ' '), ' open ')]")
 (def song-in-search-xpath "//*[@id='search_table']/tbody/tr")
 (def song-id-xpath "td/@id")
-(def download-context-xpath "//*[@id='19116']/div[2]/div[2]")
+
+(def copy-com-unique-xpath "//main[@id='copy-file-browser-main']")
+
+(def copy-com-download-button-xpath 
+  "//div[@class='actions']/a[@class='button button-primary']")
+
+(def copy-com-download-button-xpath 
+  "//a[contains(@class, 'button') and contains(@class, 'button-primary')]")
+
+(def copy-com-download-button-xpath 
+  "a")
+
+
 
 (def login-form-id "login")
 (def username-field-name "ips_username")
@@ -96,13 +108,38 @@
 (defn get-song-id-for-row [row]
   (.getValue (.getFirstByXPath row song-id-xpath)))
 
-(defn download-song [id]
-  (println (get-page *client* (str download-link-base-url id))))
+(defn get-song-data [row]
+  {:id (.getValue (.getFirstByXPath row song-id-xpath))})
+
+(defn download-from-copy-com [song-data page]
+  (let [button (.getFirstByXPath page copy-com-download-button-xpath)]
+    (println (.asText page))
+    (System/exit 0)))
+
+(defn page-is-copy-com? [page]
+  (.getFirstByXPath page copy-com-unique-xpath))
+
+(defn page-is-dropbox? [page]
+  false)
+
+(defn download-from-dropbox [song-data page]
+  false)
+
+(defn download-from-fileservice [song-data page]
+  (cond
+    (page-is-copy-com? page) (download-from-copy-com song-data page)
+    (page-is-dropbox? page) (download-from-dropbox song-data page)
+    :else (println (str "UNKNOWN FILESERVICE! id=" (:id song-data)))))
+
+(defn download-song [song-data]
+  (let [url (str download-link-base-url (:id song-data))
+        page (get-page *client* url)]
+    (download-from-fileservice song-data page)))
 
 (defn dl-songs [page]
   (let [song-rows (get-song-rows page)
-        ids (map get-song-id-for-row song-rows)]
-    (doall (map download-song ids))))
+        song-data (map get-song-data song-rows)]
+    (doall (map download-song song-data))))
 
 (defn click-next-button? [page]
   (let [button (.getFirstByXPath page next-page-enabled-xpath)]
